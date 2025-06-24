@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-openai
-pinecone-client
-redis
-anthropic
-langchain
-tiktoken
