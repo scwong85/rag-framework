@@ -19,6 +19,16 @@ chatInput.addEventListener("keydown", async (e) => {
 
     const data = await response.json();
     chatBox.innerHTML += `<div><b>Bot:</b> ${data.answer}</div>`;
+    let sourcesHTML = '';
+    if (data.sources && data.sources.length > 0) {
+        const sourcesList = data.sources.map(src => 
+            `<li><a href="${src}" target="_blank" class="text-blue-500 underline">${src}</a></li>`
+        ).join('');
+        sourcesHTML = `<div><strong>Read more at:</strong><ul class="ml-4 list-disc">${sourcesList}</ul></div>`;
+    }
+    chatBox.innerHTML += `
+      ${sourcesHTML}
+    `;
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 });

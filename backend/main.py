@@ -11,13 +11,14 @@ import time
 import random
 import openai
 from config import Config
-from langchain_community.chat_models import ChatAnthropic
+from langchain_anthropic import ChatAnthropic
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQAWithSourcesChain
 from pinecone import Pinecone
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 import redis
+import json
 
 USE_CLAUDE = os.getenv("USE_CLAUDE", "false").lower() == "true"
 cache = Cache()
@@ -139,9 +140,13 @@ def call_rag(summaries, question):
             time.sleep(2**retries + random.uniform(0, 1))
             if retries == Config.MAX_RETRIES and not Config.USE_CLAUDE:
                 print("OpenAI failed; fallback to Claude")
-                # Config.USE_CLAUDE = True  # Soft switch
+                Config.USE_CLAUDE = True  # Soft switch
                 retries = 0
-    return "Sorry, service is temporarily unavailable."
+    return {
+        "question": question,
+        "answer": "Sorry the service is temporarily unavailable",
+        "sources": [],  # List of URLs
+    }
 
 
 class TextInput(BaseModel):
@@ -163,17 +168,18 @@ async def rate_limiter(request: Request, call_next):
 async def ask(q: Query):
     cached = cache.get(q.question)
     if cached:
+        print("Getting answer from cache")
         cache.refresh_async(
             q.question, lambda text: call_model(retrieve_context(text), text)
         )
-        return {"answer": cached.decode()}
-
+        # return {"answer": cached.decode()}
+        return json.loads(cached.decode())
+    print("Getting answer from LLM")
     context = retrieve_context(q.question)
     # answer = call_model(context, q.question)
     response = call_rag(context, q.question)
-    answer = response.get("answer", "")
-    cache.set(q.question, answer)
-    return {"answer": answer}
+    cache.set(q.question, json.dumps(response))
+    return response
 
 
 if __name__ == "__main__":
